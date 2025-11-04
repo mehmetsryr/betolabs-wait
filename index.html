@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Çok Yakında — Hizmetinizdeyiz</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="wrap">
+    <h1 class="headline">Çok Yakında<br><span>Hizmetinizdeyiz</span></h1>
+
+    <div class="anim-wrap">
+      <canvas id="c" aria-hidden="true"></canvas>
+      <div class="overlay-text"></div>
+    </div>
+
+    <p class="note">Betolabs - Yapı Laboratuvarı Yönetim Platformu </p>
+    <p class="note">Ahmet Yıldırım & Mehmet Sarıyar</p>
+     <p class="note">Konya , Türkiye</p>
+  </main>
+
+  <script>
+    // Basit "aggregate deposition" animasyonu: partiküller düşer ve kazanan birikim oluşturur.
+    const canvas = document.getElementById('c');
+    const ctx = canvas.getContext('2d');
+
+    function resize(){
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = Math.floor(canvas.clientWidth * dpr);
+      canvas.height = Math.floor(canvas.clientHeight * dpr);
+      ctx.setTransform(dpr,0,0,dpr,0,0);
+    }
+
+    // Setup responsive size
+    function setupCanvasSize(){
+      const wrap = document.querySelector('.anim-wrap');
+      const w = Math.min(window.innerWidth - 80, 720);
+      wrap.style.width = w + 'px';
+      wrap.style.height = Math.round(w * 0.6) + 'px';
+      resize();
+    }
+
+    window.addEventListener('resize', ()=>{ setupCanvasSize(); });
+    setupCanvasSize();
+
+    // Height map (pile) per column (in device pixels to simplify)
+    let cols = Math.max(100, Math.floor(canvas.width/2));
+    let heights = new Array(cols).fill(0);
+
+    function resetHeights(){
+      cols = Math.max(100, Math.floor(canvas.width/2));
+      heights = new Array(cols).fill(0);
+    }
+
+    resetHeights();
+
+    // Particles
+    const particles = [];
+
+    function spawnParticle(){
+      const cw = canvas.clientWidth;
+      particles.push({
+        x: Math.random()*cw,
+        y: -10,
+        vy: 0,
+        r: 1 + Math.random()*3,
+        color: '#7d7d7d'
+      });
+      if(particles.length>1200) particles.splice(0,200);
+    }
+
+    function animate(t){
+      const cw = canvas.clientWidth;
+      const ch = canvas.clientHeight;
+      ctx.clearRect(0,0,cw,ch);
+
+      // background subtle concrete
+      const g = ctx.createLinearGradient(0,0,0,ch);
+      g.addColorStop(0,'#e6e6e6');
+      g.addColorStop(1,'#d0d0d0');
+      ctx.fillStyle = g;
+      ctx.fillRect(0,0,cw,ch);
+
+      // draw particles
+      for(let i=0;i<3;i++) spawnParticle();
+
+      ctx.fillStyle = 'rgba(60,60,60,0.9)';
+      for(let i=particles.length-1;i>=0;i--){
+        const p = particles[i];
+        p.vy += 0.25 + Math.random()*0.06; // gravity
+        p.y += p.vy;
+        // collision with pile
+        const col = Math.floor((p.x / cw) * cols);
+        const pileY = ch - (heights[col] || 0);
+        if(p.y + p.r >= pileY){
+          // settle
+          heights[col] = (heights[col] || 0) + p.r*0.9 + Math.random()*0.6;
+          particles.splice(i,1);
+          continue;
+        }
+        // draw particle
+        ctx.beginPath();
+        ctx.fillStyle = '#6b6b6b';
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+        ctx.fill();
+      }
+
+      // draw pile as a smooth curve
+      ctx.beginPath();
+      ctx.moveTo(0,ch);
+      const step = cw / cols;
+      for(let x=0;x<=cols;x++){
+        const h = heights[x] || 0;
+        const px = x*step;
+        const py = ch - h;
+        ctx.lineTo(px, py);
+      }
+      ctx.lineTo(cw,ch);
+      // fill pile with concrete gradient
+      const g2 = ctx.createLinearGradient(0,ch-200,0,ch);
+      g2.addColorStop(0,'#9e9e9e');
+      g2.addColorStop(1,'#7a7a7a');
+      ctx.fillStyle = g2;
+      ctx.fill();
+
+      // subtle noise overlay
+      ctx.globalAlpha = 0.06;
+      for(let i=0;i<60;i++){
+        ctx.fillStyle = 'rgba(0,0,0,0.04)';
+        const rx = Math.random()*cw; const ry = Math.random()*ch; const rr = Math.random()*2;
+        ctx.fillRect(rx, ry, rr, rr);
+      }
+      ctx.globalAlpha = 1;
+
+      requestAnimationFrame(animate);
+    }
+
+    // Start
+    requestAnimationFrame(animate);
+
+    // Recalculate heights on resize (small delay)
+    let resizeTimer;
+    window.addEventListener('resize', ()=>{
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(()=>{ resetHeights(); }, 200);
+    });
+  </script>
+</body>
+</html>
